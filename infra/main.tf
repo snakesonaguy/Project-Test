@@ -1,13 +1,3 @@
-data "aws_caller_identity" "current" {}
-
-data "aws_route53_zone" "site" {
-  zone_id = var.hosted_zone_id
-}
-
-data "aws_cloudfront_cache_policy" "caching_optimized" {
-  name = "Managed-CachingOptimized"
-}
-
 locals {
   www_domain = "www.${var.domain_name}"
   origin_id  = "s3-${var.bucket_name}"
@@ -89,7 +79,7 @@ resource "aws_route53_record" "cert_validation" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = data.aws_route53_zone.site.zone_id
+  zone_id         = var.hosted_zone_id
 }
 
 resource "aws_acm_certificate_validation" "site" {
@@ -199,12 +189,13 @@ resource "aws_cloudfront_distribution" "site" {
   }
 
   default_cache_behavior {
-    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
-    cached_methods             = ["GET", "HEAD"]
-    target_origin_id           = local.origin_id
-    viewer_protocol_policy     = "redirect-to-https"
-    compress                   = true
-    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_optimized.id
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = local.origin_id
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+    # AWS managed CachingOptimized; hardcoded to avoid cloudfront:ListCachePolicies.
+    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
     response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
 
     function_association {
@@ -267,7 +258,7 @@ resource "aws_s3_bucket_policy" "site" {
 }
 
 resource "aws_route53_record" "apex_a" {
-  zone_id = data.aws_route53_zone.site.zone_id
+  zone_id = var.hosted_zone_id
   name    = var.domain_name
   type    = "A"
 
@@ -279,7 +270,7 @@ resource "aws_route53_record" "apex_a" {
 }
 
 resource "aws_route53_record" "apex_aaaa" {
-  zone_id = data.aws_route53_zone.site.zone_id
+  zone_id = var.hosted_zone_id
   name    = var.domain_name
   type    = "AAAA"
 
@@ -291,7 +282,7 @@ resource "aws_route53_record" "apex_aaaa" {
 }
 
 resource "aws_route53_record" "www_a" {
-  zone_id = data.aws_route53_zone.site.zone_id
+  zone_id = var.hosted_zone_id
   name    = local.www_domain
   type    = "A"
 
@@ -303,7 +294,7 @@ resource "aws_route53_record" "www_a" {
 }
 
 resource "aws_route53_record" "www_aaaa" {
-  zone_id = data.aws_route53_zone.site.zone_id
+  zone_id = var.hosted_zone_id
   name    = local.www_domain
   type    = "AAAA"
 
