@@ -95,83 +95,6 @@ resource "aws_cloudfront_origin_access_control" "site" {
   signing_protocol                  = "sigv4"
 }
 
-resource "aws_cloudfront_response_headers_policy" "security" {
-  name    = "blasiol-com-security-headers"
-  comment = "HTTPS and baseline browser security headers for ${var.domain_name}"
-
-  security_headers_config {
-    strict_transport_security {
-      access_control_max_age_sec = 31536000
-      include_subdomains         = true
-      preload                    = true
-      override                   = true
-    }
-
-    content_type_options {
-      override = true
-    }
-
-    frame_options {
-      frame_option = "DENY"
-      override     = true
-    }
-
-    referrer_policy {
-      referrer_policy = "strict-origin-when-cross-origin"
-      override        = true
-    }
-
-    xss_protection {
-      mode_block = true
-      protection = true
-      override   = true
-    }
-
-    content_security_policy {
-      content_security_policy = "default-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
-      override                = true
-    }
-  }
-}
-
-resource "aws_cloudfront_function" "www_to_apex" {
-  name    = "blasiol-www-to-apex"
-  runtime = "cloudfront-js-2.0"
-  comment = "Redirect www.${var.domain_name} to https://${var.domain_name}"
-  publish = true
-  code    = <<-EOF
-    function handler(event) {
-      var request = event.request;
-      var host = request.headers.host.value.toLowerCase();
-      if (host === "${local.www_domain}") {
-        var location = "https://${var.domain_name}" + request.uri;
-        var keys = Object.keys(request.querystring);
-        if (keys.length > 0) {
-          var parts = [];
-          for (var i = 0; i < keys.length; i++) {
-            var name = keys[i];
-            var item = request.querystring[name];
-            if (item.multiValue) {
-              for (var j = 0; j < item.multiValue.length; j++) {
-                parts.push(encodeURIComponent(name) + "=" + encodeURIComponent(item.multiValue[j].value));
-              }
-            } else {
-              parts.push(encodeURIComponent(name) + "=" + encodeURIComponent(item.value));
-            }
-          }
-          location += "?" + parts.join("&");
-        }
-        return {
-          statusCode: 301,
-          statusDescription: "Moved Permanently",
-          headers: { location: { value: location } }
-        };
-      }
-      return request;
-    }
-  EOF
-}
-
 resource "aws_cloudfront_distribution" "site" {
   enabled             = true
   is_ipv6_enabled     = true
@@ -194,14 +117,10 @@ resource "aws_cloudfront_distribution" "site" {
     target_origin_id       = local.origin_id
     viewer_protocol_policy = "redirect-to-https"
     compress               = true
-    # AWS managed CachingOptimized; hardcoded to avoid cloudfront:ListCachePolicies.
+    # AWS managed CachingOptimized and SecurityHeadersPolicy IDs.
+    # Hardcoded because this IAM user cannot list or create those policy types.
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
-
-    function_association {
-      event_type   = "viewer-request"
-      function_arn = aws_cloudfront_function.www_to_apex.arn
-    }
+    response_headers_policy_id = "67f7725c-6f97-4210-82d7-5512b31e9d03"
   }
 
   custom_error_response {

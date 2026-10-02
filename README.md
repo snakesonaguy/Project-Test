@@ -3,7 +3,7 @@
 Personal static site for Steven Blasiol, served from a private S3 bucket through CloudFront.
 
 - Apex: https://blasiol.com
-- www redirects to the apex
+- www: https://www.blasiol.com (same content; IAM cannot create CloudFront Functions for a redirect)
 - Infrastructure is Terraform in [`infra/`](infra/)
 - Site files are in [`site/`](site/)
 
@@ -29,6 +29,8 @@ The apply creates or updates:
 - ACM certificate in `us-east-1` for `blasiol.com` and `www.blasiol.com` (DNS validation)
 - CloudFront distribution with Origin Access Control, HTTPS only, TLS 1.3 (`TLSv1.3_2025`)
 - Route 53 alias A/AAAA records in hosted zone `Z0983518LPGNWRT3A0L7`
+
+The deploy IAM user cannot call `route53:ListTagsForResource`, `cloudfront:ListCachePolicies`, `cloudfront:CreateFunction`, or `cloudfront:CreateResponseHeadersPolicy`. The config avoids those APIs: both hostnames are served, and AWS managed cache/security header policy IDs are used.
 
 Terraform only manages records it creates (certificate validation CNAMEs and the CloudFront aliases). It does not delete unrelated Route 53 records.
 

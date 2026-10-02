@@ -4,7 +4,7 @@ output "site_url" {
 }
 
 output "www_url" {
-  description = "www hostname; CloudFront redirects it to the apex."
+  description = "www hostname; same CloudFront distribution as the apex."
   value       = "https://${local.www_domain}"
 }
 
